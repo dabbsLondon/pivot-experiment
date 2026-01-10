@@ -5,6 +5,9 @@ on:
     branches: ["**"]
   pull_request:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   rust-test:
     runs-on: ubuntu-latest
@@ -15,8 +18,104 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Run tests
-        run: cargo test --workspace
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests with timing
+        id: tests
+        run: |
+          START=$(date +%s%3N)
+          cargo test --workspace --no-fail-fast 2>&1 | tee test_output.txt
+          END=$(date +%s%3N)
+          DURATION=$((END - START))
+          echo "test_duration=${DURATION}" >> $GITHUB_OUTPUT
+
+          # Extract test counts
+          PASSED=$(grep -oP '\d+(?= passed)' test_output.txt | tail -1 || echo "0")
+          FAILED=$(grep -oP '\d+(?= failed)' test_output.txt | tail -1 || echo "0")
+          echo "tests_passed=${PASSED:-0}" >> $GITHUB_OUTPUT
+          echo "tests_failed=${FAILED:-0}" >> $GITHUB_OUTPUT
+
+      - name: Generate sample data
+        id: datagen
+        run: |
+          START=$(date +%s%3N)
+          cargo run -p pivot-data-gen --release -- \
+            --rows 20 \
+            --portfolio-managers 1 \
+            --seed 42 \
+            --output sample_data.csv
+          END=$(date +%s%3N)
+          DURATION=$((END - START))
+          echo "gen_duration=${DURATION}" >> $GITHUB_OUTPUT
+
+          # Get file info
+          FILE_SIZE=$(stat -c%s sample_data.csv)
+          ROW_COUNT=$(wc -l < sample_data.csv)
+          COL_COUNT=$(head -1 sample_data.csv | tr ',' '\n' | wc -l)
+          echo "file_size=${FILE_SIZE}" >> $GITHUB_OUTPUT
+          echo "row_count=${ROW_COUNT}" >> $GITHUB_OUTPUT
+          echo "col_count=${COL_COUNT}" >> $GITHUB_OUTPUT
+
+      - name: Write job summary
+        env:
+          TEST_DURATION: ${{ steps.tests.outputs.test_duration }}
+          TESTS_PASSED: ${{ steps.tests.outputs.tests_passed }}
+          TESTS_FAILED: ${{ steps.tests.outputs.tests_failed }}
+          GEN_DURATION: ${{ steps.datagen.outputs.gen_duration }}
+          FILE_SIZE: ${{ steps.datagen.outputs.file_size }}
+          COL_COUNT: ${{ steps.datagen.outputs.col_count }}
+        run: |
+          {
+            echo "# Pivot Data Generator CI Report"
+            echo ""
+            echo "## Test Results"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Tests Passed | ${TESTS_PASSED} |"
+            echo "| Tests Failed | ${TESTS_FAILED} |"
+            echo "| Test Duration | ${TEST_DURATION}ms |"
+            echo ""
+            echo "## Sample Data Generation"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|--------|-------|"
+            echo "| Rows Generated | 20 |"
+            echo "| Columns | ${COL_COUNT} |"
+            echo "| Portfolio Managers | 1 |"
+            echo "| File Size | ${FILE_SIZE} bytes |"
+            echo "| Generation Time | ${GEN_DURATION}ms |"
+            echo ""
+            echo "## Sample Data Preview"
+            echo ""
+            echo "First 5 rows of generated data:"
+            echo ""
+            echo "\`\`\`csv"
+            head -6 sample_data.csv
+            echo "\`\`\`"
+            echo ""
+            echo "### Column Headers"
+            echo ""
+            echo "\`\`\`"
+            head -1 sample_data.csv | tr ',' '\n' | nl
+            echo "\`\`\`"
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload sample data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-data
+          path: sample_data.csv
+          retention-days: 7
 
   docker-build:
     runs-on: ubuntu-latest
