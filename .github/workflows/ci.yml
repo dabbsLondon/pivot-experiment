@@ -28,7 +28,4 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build containers
-        uses: docker/bake-action@v5
-        with:
-          files: |
-            docker-compose.yml
+        run: docker compose -f docker-compose.yml build
