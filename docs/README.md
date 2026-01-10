@@ -36,3 +36,33 @@ flowchart LR
 2. Build a basic web UI to request and visualize pivots.
 3. Add integration with ClickHouse and Redis.
 4. Expand test coverage with unit and integration tests.
+
+## Data generation
+
+The data generator (`tools/data-gen`) can create a single day of financial data with one row per PM. Configure the run with CLI flags so you can scale from a tiny test run to the long-term target of 20 million rows. Each run writes a sample CSV file (default `sample.csv`) showing the first rows used for validation.
+
+Example: generate 10 rows for a single day.
+
+```bash
+cargo run -p pivot-data-gen -- --date 2024-01-01 --pms 10
+```
+
+Example: write a 5-row sample file to a custom path.
+
+```bash
+cargo run -p pivot-data-gen -- --date 2024-01-01 --pms 10 --sample-output docs/assets/sample.csv --sample-size 5
+```
+
+Example: generate the 20 million row target (one row per PM).
+
+```bash
+cargo run -p pivot-data-gen -- --date 2024-01-01 --pms 20000000
+```
+
+## Testing
+
+Unit tests for the data generator live alongside the CLI in `tools/data-gen/src/main.rs`. Run them with:
+
+```bash
+cargo test -p pivot-data-gen
+```
