@@ -18,6 +18,15 @@ jobs:
       - name: Run tests
         run: cargo test --workspace
 
+      - name: Generate data sample
+        run: cargo run -p pivot-data-gen -- --date 2024-01-01 --pms 10 --sample-output build-artifacts/sample.csv --sample-size 5
+
+      - name: Upload data sample
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-gen-sample
+          path: build-artifacts/sample.csv
+
   docker-build:
     runs-on: ubuntu-latest
     steps:
