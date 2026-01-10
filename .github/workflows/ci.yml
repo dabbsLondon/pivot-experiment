@@ -97,17 +97,44 @@ jobs:
             echo ""
             echo "## Sample Data Preview"
             echo ""
-            echo "First 5 rows of generated data:"
+            echo "First 5 rows of generated data (key columns):"
+            echo ""
+          } >> $GITHUB_STEP_SUMMARY
+
+          # Convert CSV to markdown table (select key columns for readability)
+          # Columns: trade_date, ts, portfolio_manager_id, desk, book, symbol, quantity, price, notional, pnl
+          {
+            echo "| trade_date | ts | pm_id | desk | book | symbol | quantity | price | notional | pnl |"
+            echo "|------------|-----|-------|------|------|--------|----------|-------|----------|-----|"
+            tail -n +2 sample_data.csv | head -5 | while IFS=',' read -r trade_date ts pm_id fund_id portfolio_id account_id desk book strategy region country venue asset_class product symbol currency counterparty risk_bucket scenario trade_id order_id quantity price notional pnl rest; do
+              # Format numbers for readability
+              qty=$(printf "%.0f" "$quantity")
+              prc=$(printf "%.2f" "$price")
+              ntl=$(printf "%.0f" "$notional")
+              pnl_fmt=$(printf "%.0f" "$pnl")
+              ts_short=$(echo "$ts" | cut -d' ' -f2 | cut -d'.' -f1)
+              echo "| ${trade_date} | ${ts_short} | ${pm_id} | ${desk} | ${book} | ${symbol} | ${qty} | ${prc} | ${ntl} | ${pnl_fmt} |"
+            done
+          } >> $GITHUB_STEP_SUMMARY
+
+          {
+            echo ""
+            echo "<details>"
+            echo "<summary>Full Sample Data (all 50 columns)</summary>"
             echo ""
             echo "\`\`\`csv"
             head -6 sample_data.csv
             echo "\`\`\`"
             echo ""
+            echo "</details>"
+            echo ""
             echo "### Column Headers"
             echo ""
-            echo "\`\`\`"
-            head -1 sample_data.csv | tr ',' '\n' | nl
-            echo "\`\`\`"
+            echo "| # | Column Name |"
+            echo "|---|-------------|"
+            head -1 sample_data.csv | tr ',' '\n' | nl | while read num col; do
+              echo "| ${num} | ${col} |"
+            done
           } >> $GITHUB_STEP_SUMMARY
 
       - name: Upload sample data artifact
