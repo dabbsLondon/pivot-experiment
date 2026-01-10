@@ -1,44 +1,56 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="980" height="260" viewBox="0 0 980 260" role="img" aria-label="Architecture diagram">
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="320" viewBox="0 0 1100 320" role="img" aria-label="Architecture diagram">
   <defs>
     <style>
-      .box { fill: #f8fafc; stroke: #1f2933; stroke-width: 2; rx: 12; }
+      .box { stroke-width: 2; rx: 14; }
+      .box-web { fill: #dbeafe; stroke: #1e3a8a; }
+      .box-api { fill: #fef3c7; stroke: #92400e; }
+      .box-db { fill: #bbf7d0; stroke: #166534; }
+      .box-cache { fill: #fde68a; stroke: #92400e; }
+      .box-parquet { fill: #e9d5ff; stroke: #6b21a8; }
       .title { font: 16px/1.4 "Inter", "Segoe UI", Arial, sans-serif; fill: #0f172a; font-weight: 600; }
       .label { font: 14px/1.4 "Inter", "Segoe UI", Arial, sans-serif; fill: #0f172a; }
-      .arrow { stroke: #1f2933; stroke-width: 2.5; fill: none; }
+      .arrow { stroke: #0f172a; stroke-width: 2.5; fill: none; }
       .arrow-label { font: 12px/1.4 "Inter", "Segoe UI", Arial, sans-serif; fill: #334155; }
     </style>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-      <polygon points="0 0, 10 3.5, 0 7" fill="#1f2933" />
+      <polygon points="0 0, 10 3.5, 0 7" fill="#0f172a" />
     </marker>
   </defs>
 
-  <rect class="box" x="40" y="90" width="180" height="80" />
-  <text class="title" x="130" y="125" text-anchor="middle">Web app</text>
-  <text class="label" x="130" y="147" text-anchor="middle">apps/web</text>
+  <rect class="box box-web" x="40" y="120" width="190" height="90" />
+  <text class="title" x="135" y="155" text-anchor="middle">Web app</text>
+  <text class="label" x="135" y="178" text-anchor="middle">apps/web</text>
 
-  <rect class="box" x="300" y="70" width="200" height="120" />
-  <text class="title" x="400" y="120" text-anchor="middle">API service</text>
-  <text class="label" x="400" y="142" text-anchor="middle">services/api</text>
+  <rect class="box box-api" x="280" y="100" width="210" height="130" />
+  <text class="title" x="385" y="145" text-anchor="middle">API service</text>
+  <text class="label" x="385" y="168" text-anchor="middle">services/api</text>
 
-  <rect class="box" x="600" y="30" width="160" height="90" />
-  <text class="title" x="680" y="70" text-anchor="middle">ClickHouse</text>
+  <rect class="box box-db" x="560" y="40" width="180" height="90" />
+  <text class="title" x="650" y="80" text-anchor="middle">ClickHouse</text>
 
-  <rect class="box" x="600" y="150" width="160" height="90" />
-  <text class="title" x="680" y="190" text-anchor="middle">Redis</text>
+  <rect class="box box-cache" x="560" y="190" width="180" height="90" />
+  <text class="title" x="650" y="230" text-anchor="middle">Redis</text>
 
-  <rect class="box" x="800" y="30" width="160" height="90" />
-  <text class="title" x="880" y="60" text-anchor="middle">Data generator</text>
-  <text class="label" x="880" y="82" text-anchor="middle">tools/data-gen</text>
+  <rect class="box box-parquet" x="800" y="30" width="200" height="90" />
+  <text class="title" x="900" y="70" text-anchor="middle">Parquet files</text>
+  <text class="label" x="900" y="92" text-anchor="middle">Object storage</text>
 
-  <line class="arrow" x1="220" y1="130" x2="300" y2="130" marker-end="url(#arrowhead)" />
-  <text class="arrow-label" x="260" y="115" text-anchor="middle">HTTP</text>
+  <rect class="box box-api" x="800" y="190" width="200" height="90" />
+  <text class="title" x="900" y="230" text-anchor="middle">Data generator</text>
+  <text class="label" x="900" y="252" text-anchor="middle">tools/data-gen</text>
 
-  <line class="arrow" x1="500" y1="100" x2="600" y2="75" marker-end="url(#arrowhead)" />
-  <text class="arrow-label" x="550" y="75" text-anchor="middle">Reads/Writes</text>
+  <line class="arrow" x1="230" y1="165" x2="280" y2="165" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="255" y="148" text-anchor="middle">HTTP</text>
 
-  <line class="arrow" x1="500" y1="160" x2="600" y2="195" marker-end="url(#arrowhead)" />
-  <text class="arrow-label" x="550" y="185" text-anchor="middle">Cache</text>
+  <line class="arrow" x1="490" y1="140" x2="560" y2="85" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="525" y="110" text-anchor="middle">Reads/Writes</text>
 
-  <line class="arrow" x1="760" y1="75" x2="800" y2="75" marker-end="url(#arrowhead)" />
-  <text class="arrow-label" x="780" y="60" text-anchor="middle">Seed/Load</text>
+  <line class="arrow" x1="490" y1="190" x2="560" y2="230" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="525" y="215" text-anchor="middle">Cache</text>
+
+  <line class="arrow" x1="800" y1="235" x2="800" y2="85" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="820" y="160" text-anchor="start">Builds</text>
+
+  <line class="arrow" x1="800" y1="75" x2="740" y2="75" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="770" y="58" text-anchor="middle">Load</text>
 </svg>
