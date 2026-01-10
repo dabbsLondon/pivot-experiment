@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="260" viewBox="0 0 980 260" role="img" aria-label="Architecture diagram">
+  <defs>
+    <style>
+      .box { fill: #f8fafc; stroke: #1f2933; stroke-width: 2; rx: 12; }
+      .title { font: 16px/1.4 "Inter", "Segoe UI", Arial, sans-serif; fill: #0f172a; font-weight: 600; }
+      .label { font: 14px/1.4 "Inter", "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+      .arrow { stroke: #1f2933; stroke-width: 2.5; fill: none; }
+      .arrow-label { font: 12px/1.4 "Inter", "Segoe UI", Arial, sans-serif; fill: #334155; }
+    </style>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1f2933" />
+    </marker>
+  </defs>
+
+  <rect class="box" x="40" y="90" width="180" height="80" />
+  <text class="title" x="130" y="125" text-anchor="middle">Web app</text>
+  <text class="label" x="130" y="147" text-anchor="middle">apps/web</text>
+
+  <rect class="box" x="300" y="70" width="200" height="120" />
+  <text class="title" x="400" y="120" text-anchor="middle">API service</text>
+  <text class="label" x="400" y="142" text-anchor="middle">services/api</text>
+
+  <rect class="box" x="600" y="30" width="160" height="90" />
+  <text class="title" x="680" y="70" text-anchor="middle">ClickHouse</text>
+
+  <rect class="box" x="600" y="150" width="160" height="90" />
+  <text class="title" x="680" y="190" text-anchor="middle">Redis</text>
+
+  <rect class="box" x="800" y="30" width="160" height="90" />
+  <text class="title" x="880" y="60" text-anchor="middle">Data generator</text>
+  <text class="label" x="880" y="82" text-anchor="middle">tools/data-gen</text>
+
+  <line class="arrow" x1="220" y1="130" x2="300" y2="130" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="260" y="115" text-anchor="middle">HTTP</text>
+
+  <line class="arrow" x1="500" y1="100" x2="600" y2="75" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="550" y="75" text-anchor="middle">Reads/Writes</text>
+
+  <line class="arrow" x1="500" y1="160" x2="600" y2="195" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="550" y="185" text-anchor="middle">Cache</text>
+
+  <line class="arrow" x1="760" y1="75" x2="800" y2="75" marker-end="url(#arrowhead)" />
+  <text class="arrow-label" x="780" y="60" text-anchor="middle">Seed/Load</text>
+</svg>
