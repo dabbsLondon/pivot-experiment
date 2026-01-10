@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.2
+    container_name: pivot-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./sql:/sql
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+  redis:
+    image: redis:7.2
+    container_name: pivot-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+volumes:
+  clickhouse_data:
+  redis_data:
