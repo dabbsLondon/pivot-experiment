@@ -1,0 +1,12 @@
+{
+  "name": "pivot-test",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:api": "cargo run -p pivot-api",
+    "dev:web": "pnpm --filter web dev",
+    "gen:data": "cargo run -p pivot-data-gen --",
+    "db:reset": "docker compose exec clickhouse clickhouse-client --multiquery --queries-file /sql/clickhouse/001_schema.sql",
+    "db:rollups": "docker compose exec clickhouse clickhouse-client --multiquery --queries-file /sql/clickhouse/002_rollups.sql"
+  }
+}

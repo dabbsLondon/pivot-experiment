@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "services/api",
+  "tools/data-gen",
+]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+license = "MIT"
