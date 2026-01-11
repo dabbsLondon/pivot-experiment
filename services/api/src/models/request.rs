@@ -123,11 +123,11 @@ pub enum ExposureView {
 pub struct PnlQuery {
     pub trade_date: String,
     #[serde(default = "default_pnl_group_by")]
-    pub group_by: Vec<String>,
+    pub group_by: String,
     #[serde(default)]
     pub cache_bypass: bool,
 }
 
-fn default_pnl_group_by() -> Vec<String> {
-    vec!["portfolio_manager_id".to_string()]
+fn default_pnl_group_by() -> String {
+    "portfolio_manager_id".to_string()
 }

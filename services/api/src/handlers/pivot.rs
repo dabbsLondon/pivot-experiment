@@ -1,6 +1,4 @@
 use actix_web::{web, HttpResponse};
-use clickhouse::Row;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -10,12 +8,6 @@ use crate::models::response::{PivotResponse, PivotRow, QueryMetadata};
 use crate::query::PivotQueryBuilder;
 use crate::cache::redis::{generate_cache_key, get_cached, set_cached};
 use crate::AppState;
-
-#[derive(Debug, Row, Deserialize)]
-struct DynamicRow {
-    #[serde(flatten)]
-    values: HashMap<String, serde_json::Value>,
-}
 
 pub async fn handler(
     state: web::Data<AppState>,
@@ -37,41 +29,89 @@ pub async fn handler(
         }
     }
 
-    // Build and execute query
+    // Build the query
     let builder = PivotQueryBuilder::from_request(&request)?;
     let sql = builder.build();
 
     tracing::debug!("Executing pivot query: {}", sql);
 
-    let rows: Vec<DynamicRow> = state
+    // Execute query and get raw JSON response
+    let json_query = format!("{} FORMAT JSONEachRow", sql);
+    let raw_response = state
         .clickhouse
-        .query(&sql)
-        .fetch_all()
-        .await?;
+        .query(&json_query)
+        .fetch_all::<String>()
+        .await;
 
-    // Transform rows into response format
-    let data: Vec<PivotRow> = rows
-        .into_iter()
-        .map(|row| {
-            let mut dimensions = HashMap::new();
-            let mut metrics = HashMap::new();
+    // Handle the response - if the query fails due to type issues, try alternative approach
+    let data: Vec<PivotRow> = match raw_response {
+        Ok(rows) => {
+            rows.into_iter()
+                .filter_map(|json_str| {
+                    serde_json::from_str::<HashMap<String, serde_json::Value>>(&json_str).ok()
+                })
+                .map(|row| {
+                    let mut dimensions = HashMap::new();
+                    let mut metrics = HashMap::new();
 
-            for (key, value) in row.values {
-                // Check if this is a metric (starts with total_ or ends with _count)
-                if key.starts_with("total_") || key.ends_with("_count") || key == "avg_price" {
-                    if let Some(num) = value.as_f64() {
-                        metrics.insert(key, num);
-                    } else if let Some(num) = value.as_i64() {
-                        metrics.insert(key, num as f64);
+                    for (key, value) in row {
+                        if key.starts_with("total_") || key.ends_with("_count") || key == "avg_price" {
+                            if let Some(num) = value.as_f64() {
+                                metrics.insert(key, num);
+                            } else if let Some(num) = value.as_i64() {
+                                metrics.insert(key, num as f64);
+                            }
+                        } else {
+                            dimensions.insert(key, value);
+                        }
                     }
-                } else {
-                    dimensions.insert(key, value);
-                }
-            }
 
-            PivotRow { dimensions, metrics }
-        })
-        .collect();
+                    PivotRow { dimensions, metrics }
+                })
+                .collect()
+        }
+        Err(_) => {
+            // Alternative: use HTTP client directly for JSON format
+            let http_query = format!("{}?default_format=JSONEachRow", state.config.clickhouse.url);
+            let client = reqwest::Client::new();
+            let response = client
+                .post(&http_query)
+                .body(sql.clone())
+                .send()
+                .await
+                .map_err(|e| ApiError::Database(e.to_string()))?;
+
+            let body = response
+                .text()
+                .await
+                .map_err(|e| ApiError::Database(e.to_string()))?;
+
+            body.lines()
+                .filter(|line| !line.is_empty())
+                .filter_map(|line| {
+                    serde_json::from_str::<HashMap<String, serde_json::Value>>(line).ok()
+                })
+                .map(|row| {
+                    let mut dimensions = HashMap::new();
+                    let mut metrics = HashMap::new();
+
+                    for (key, value) in row {
+                        if key.starts_with("total_") || key.ends_with("_count") || key == "avg_price" {
+                            if let Some(num) = value.as_f64() {
+                                metrics.insert(key, num);
+                            } else if let Some(num) = value.as_i64() {
+                                metrics.insert(key, num as f64);
+                            }
+                        } else {
+                            dimensions.insert(key, value);
+                        }
+                    }
+
+                    PivotRow { dimensions, metrics }
+                })
+                .collect()
+        }
+    };
 
     let response = PivotResponse {
         metadata: QueryMetadata {
