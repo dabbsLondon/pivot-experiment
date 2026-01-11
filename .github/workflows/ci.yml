@@ -101,26 +101,36 @@ jobs:
             echo ""
           } >> $GITHUB_STEP_SUMMARY
 
-          # Convert CSV to markdown table (select key columns for readability)
-          # Columns: trade_date, ts, portfolio_manager_id, desk, book, symbol, quantity, price, notional, pnl
+          # Convert CSV to markdown table using column positions
+          # Col 1: trade_date, 2: ts, 3: pm_id, 7: desk, 8: book, 16: symbol, 19: exposure_type, 26: quantity, 27: price, 28: notional, 29: pnl
           {
-            echo "| trade_date | ts | pm_id | desk | book | symbol | quantity | price | notional | pnl |"
-            echo "|------------|-----|-------|------|------|--------|----------|-------|----------|-----|"
-            tail -n +2 sample_data.csv | head -5 | while IFS=',' read -r trade_date ts pm_id fund_id portfolio_id account_id desk book strategy region country venue asset_class product symbol currency counterparty risk_bucket scenario trade_id order_id quantity price notional pnl rest; do
-              # Format numbers for readability
-              qty=$(printf "%.0f" "$quantity")
-              prc=$(printf "%.2f" "$price")
-              ntl=$(printf "%.0f" "$notional")
-              pnl_fmt=$(printf "%.0f" "$pnl")
-              ts_short=$(echo "$ts" | cut -d' ' -f2 | cut -d'.' -f1)
-              echo "| ${trade_date} | ${ts_short} | ${pm_id} | ${desk} | ${book} | ${symbol} | ${qty} | ${prc} | ${ntl} | ${pnl_fmt} |"
+            echo "| trade_date | ts | pm_id | desk | book | symbol | exposure | qty | price | notional | pnl |"
+            echo "|------------|-----|-------|------|------|--------|----------|-----|-------|----------|-----|"
+            tail -n +2 sample_data.csv | head -5 | while read -r line; do
+              trade_date=$(echo "$line" | cut -d',' -f1)
+              ts=$(echo "$line" | cut -d',' -f2 | cut -d' ' -f2 | cut -d'.' -f1)
+              pm_id=$(echo "$line" | cut -d',' -f3)
+              desk=$(echo "$line" | cut -d',' -f7)
+              book=$(echo "$line" | cut -d',' -f8)
+              symbol=$(echo "$line" | cut -d',' -f16)
+              exposure=$(echo "$line" | cut -d',' -f19)
+              quantity=$(echo "$line" | cut -d',' -f26)
+              price=$(echo "$line" | cut -d',' -f27)
+              notional=$(echo "$line" | cut -d',' -f28)
+              pnl=$(echo "$line" | cut -d',' -f29)
+              # Format numbers (with fallback if not numeric)
+              qty=$(printf "%.0f" "$quantity" 2>/dev/null || echo "$quantity")
+              prc=$(printf "%.2f" "$price" 2>/dev/null || echo "$price")
+              ntl=$(printf "%.0f" "$notional" 2>/dev/null || echo "$notional")
+              pnl_fmt=$(printf "%.0f" "$pnl" 2>/dev/null || echo "$pnl")
+              echo "| ${trade_date} | ${ts} | ${pm_id} | ${desk} | ${book} | ${symbol} | ${exposure} | ${qty} | ${prc} | ${ntl} | ${pnl_fmt} |"
             done
           } >> $GITHUB_STEP_SUMMARY
 
           {
             echo ""
             echo "<details>"
-            echo "<summary>Full Sample Data (all 50 columns)</summary>"
+            echo "<summary>Full Sample Data (all columns)</summary>"
             echo ""
             echo "\`\`\`csv"
             head -6 sample_data.csv
