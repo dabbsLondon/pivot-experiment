@@ -86,14 +86,15 @@ pub struct TradeRecord {
     pub product: String,
     pub instrument_type: String,
     pub symbol: String,
-    pub parent_symbol: String,
+    pub underlying_symbol: String,       // For constituents: the actual underlying (AAPL, GOLD, etc.)
+    pub parent_symbol: String,           // For constituents: the parent ETF/ETC (SPY, GLD, etc.)
+    pub exposure_type: String,           // "Direct", "ETF", "ETC", "Constituent"
     pub currency: String,
     pub counterparty: String,
     pub risk_bucket: String,
     pub scenario: String,
     pub trade_id: u64,
     pub order_id: u64,
-    pub is_constituent_exposure: u8,
     pub quantity: f64,
     pub price: f64,
     pub notional: f64,
@@ -323,6 +324,13 @@ impl DataGenerator {
         let risk_bucket = self.pick(RISK_BUCKETS).to_string();
         let scenario = self.pick(SCENARIOS).to_string();
 
+        // Determine exposure_type based on instrument
+        let exposure_type = if instrument.is_composite == 1 {
+            instrument.instrument_type.clone() // "ETF" or "ETC"
+        } else {
+            "Direct".to_string()
+        };
+
         let base_record = TradeRecord {
             trade_date: self.trade_date.format("%Y-%m-%d").to_string(),
             ts: ts.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
@@ -340,14 +348,15 @@ impl DataGenerator {
             product: if instrument.instrument_type == "Stock" { "Spot".into() } else { instrument.instrument_type.clone() },
             instrument_type: instrument.instrument_type.clone(),
             symbol: instrument.symbol.clone(),
-            parent_symbol: String::new(),
+            underlying_symbol: instrument.symbol.clone(), // For direct/ETF/ETC, symbol is the underlying
+            parent_symbol: String::new(),                 // No parent for top-level trades
+            exposure_type,
             currency: instrument.currency.clone(),
             counterparty: counterparty.clone(),
             risk_bucket: risk_bucket.clone(),
             scenario: scenario.clone(),
             trade_id: self.trade_counter,
             order_id: self.order_counter,
-            is_constituent_exposure: 0,
             quantity,
             price,
             notional,
@@ -408,15 +417,16 @@ impl DataGenerator {
                         asset_class: base_record.asset_class.clone(),
                         product: "Constituent".into(),
                         instrument_type: "Constituent".into(),
-                        symbol: c.constituent_symbol.clone(),
-                        parent_symbol: instrument.symbol.clone(),
+                        symbol: instrument.symbol.clone(),           // Keep parent symbol for grouping
+                        underlying_symbol: c.constituent_symbol.clone(), // The actual underlying
+                        parent_symbol: instrument.symbol.clone(),    // Link back to parent ETF/ETC
+                        exposure_type: "Constituent".to_string(),    // Mark as constituent exposure
                         currency: base_record.currency.clone(),
                         counterparty: counterparty.clone(),
                         risk_bucket: risk_bucket.clone(),
                         scenario: scenario.clone(),
                         trade_id: self.trade_counter,
                         order_id: self.order_counter,
-                        is_constituent_exposure: 1,
                         quantity: constituent_qty,
                         price: price * c.weight,
                         notional: constituent_notional,
@@ -501,7 +511,7 @@ pub fn generate_to_file(args: &Args) -> Result<GenerationResult, Box<dyn std::er
             for _ in 0..args.rows {
                 let records = generator.generate_records();
                 for record in &records {
-                    if record.is_constituent_exposure == 1 {
+                    if record.exposure_type == "Constituent" {
                         constituent_rows += 1;
                     }
                     csv_writer.serialize(record)?;
@@ -525,7 +535,7 @@ pub fn generate_to_file(args: &Args) -> Result<GenerationResult, Box<dyn std::er
             for _ in 0..args.rows {
                 let records = generator.generate_records();
                 for record in &records {
-                    if record.is_constituent_exposure == 1 {
+                    if record.exposure_type == "Constituent" {
                         constituent_rows += 1;
                     }
                     csv_writer.serialize(record)?;
@@ -615,9 +625,9 @@ mod tests {
         // Header + 20 data rows
         assert_eq!(lines.len(), 21, "Expected 21 lines (1 header + 20 rows)");
 
-        // Verify column count in header (54 columns with constituent support)
+        // Verify column count in header (55 columns with exposure_type support)
         let header_cols: Vec<&str> = lines[0].split(',').collect();
-        assert_eq!(header_cols.len(), 54, "Expected 54 columns");
+        assert_eq!(header_cols.len(), 55, "Expected 55 columns");
 
         // Verify all rows have portfolio_manager_id = 1
         for line in &lines[1..] {
@@ -639,11 +649,12 @@ mod tests {
                 // Found a composite instrument
                 found_constituents = true;
                 let parent = &records[0];
-                assert_eq!(parent.is_constituent_exposure, 0);
+                assert!(parent.exposure_type == "ETF" || parent.exposure_type == "ETC");
 
                 for constituent in &records[1..] {
-                    assert_eq!(constituent.is_constituent_exposure, 1);
+                    assert_eq!(constituent.exposure_type, "Constituent");
                     assert_eq!(constituent.parent_symbol, parent.symbol);
+                    assert!(!constituent.underlying_symbol.is_empty());
                     assert!(constituent.weight > 0.0 && constituent.weight <= 1.0);
                 }
                 break;

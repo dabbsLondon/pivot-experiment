@@ -112,12 +112,23 @@ Main fact table containing trade-level data.
 | `risk_bucket` | LowCardinality(String) | Low, Medium, High, VeryHigh |
 | `scenario` | LowCardinality(String) | Base, Stress, Historical, MonteCarlo |
 
-#### Constituent Tracking
+#### Exposure Type (Key for Pivoting)
 
 | Column | Type | Description |
 |--------|------|-------------|
-| `is_constituent_exposure` | UInt8 | 1 if this is an exploded constituent row |
+| `underlying_symbol` | String | The actual underlying instrument (AAPL, GOLD, etc.) |
+| `parent_symbol` | String | For constituents: the parent ETF/ETC symbol |
+| `exposure_type` | LowCardinality(String) | **Key field for pivot filtering** |
 | `weight` | Float64 | Constituent weight (1.0 for direct trades) |
+
+**exposure_type values:**
+
+| Value | Description | Use Case |
+|-------|-------------|----------|
+| `Direct` | Direct stock/commodity trade | Always include |
+| `ETF` | Trade in an ETF wrapper (SPY, QQQ) | Include for top-level view |
+| `ETC` | Trade in an ETC wrapper (GLD, SLV) | Include for top-level view |
+| `Constituent` | Exploded constituent exposure | Include for look-through view |
 
 #### Quantities & Values
 
@@ -199,41 +210,79 @@ GROUP BY trade_date, portfolio_manager_id, fund_id, book, asset_class, symbol
 
 ## Query Patterns
 
-### Total exposure by asset class
+### Top-Level View (No Double Counting)
 
-```sql
-SELECT
-    asset_class,
-    sum(exposure) AS total_exposure
-FROM pivot.trades_1d
-WHERE trade_date = '2024-01-15'
-GROUP BY asset_class
-ORDER BY total_exposure DESC
-```
-
-### ETF look-through exposure
+Use this when you want to see ETFs as single positions without exploding to constituents:
 
 ```sql
 SELECT
     symbol,
-    parent_symbol,
-    sum(notional) AS exposure
+    exposure_type,
+    sum(notional) AS total_notional,
+    sum(pnl) AS total_pnl
 FROM pivot.trades_1d
-WHERE is_constituent_exposure = 1
-  AND trade_date = '2024-01-15'
-GROUP BY symbol, parent_symbol
-ORDER BY exposure DESC
+WHERE trade_date = '2024-01-15'
+  AND exposure_type IN ('Direct', 'ETF', 'ETC')  -- Exclude constituent rows
+GROUP BY symbol, exposure_type
+ORDER BY total_notional DESC
 ```
 
-### Portfolio manager P&L
+### Look-Through View (Actual Underlying Exposure)
+
+Use this to see what you actually own through ETFs:
+
+```sql
+SELECT
+    underlying_symbol,
+    exposure_type,
+    sum(notional) AS total_notional,
+    sum(pnl) AS total_pnl
+FROM pivot.trades_1d
+WHERE trade_date = '2024-01-15'
+  AND exposure_type IN ('Direct', 'Constituent')  -- Direct + ETF constituents
+GROUP BY underlying_symbol, exposure_type
+ORDER BY total_notional DESC
+```
+
+### Total AAPL Exposure (Direct + Via ETFs)
+
+```sql
+SELECT
+    underlying_symbol,
+    sumIf(notional, exposure_type = 'Direct') AS direct_exposure,
+    sumIf(notional, exposure_type = 'Constituent') AS etf_exposure,
+    sum(notional) AS total_exposure
+FROM pivot.trades_1d
+WHERE underlying_symbol = 'AAPL'
+  AND trade_date = '2024-01-15'
+GROUP BY underlying_symbol
+```
+
+### ETF Decomposition (What's Inside Each ETF)
+
+```sql
+SELECT
+    parent_symbol AS etf,
+    underlying_symbol,
+    weight,
+    sum(notional) AS constituent_notional
+FROM pivot.trades_1d
+WHERE exposure_type = 'Constituent'
+  AND trade_date = '2024-01-15'
+GROUP BY parent_symbol, underlying_symbol, weight
+ORDER BY parent_symbol, weight DESC
+```
+
+### Portfolio Manager P&L by Exposure Type
 
 ```sql
 SELECT
     portfolio_manager_id,
+    exposure_type,
     sum(pnl) AS total_pnl,
     count() AS trade_count
 FROM pivot.trades_1d
 WHERE trade_date = '2024-01-15'
-GROUP BY portfolio_manager_id
-ORDER BY total_pnl DESC
+GROUP BY portfolio_manager_id, exposure_type
+ORDER BY portfolio_manager_id, total_pnl DESC
 ```
