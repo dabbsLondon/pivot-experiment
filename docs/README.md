@@ -1,38 +1,90 @@
-# Plan README
+# Documentation
 
-## Current status
+Technical documentation for the Pivot Experiment platform.
 
-- Rust workspace with a minimal API service (`services/api`) and data generator (`tools/data-gen`).
-- Web app scaffold in `apps/web` with a placeholder dev script.
-- Local infrastructure in `docker-compose.yml` for ClickHouse and Redis.
+## Contents
 
-## Architecture diagram
+| Document | Description |
+|----------|-------------|
+| [Data Model](./data-model.md) | Schema design, tables, constituent relationships, and query patterns |
+| [Data Generator](./data-generator.md) | CLI tool usage, options, and loading data into ClickHouse |
 
-```mermaid
-flowchart LR
-  Web[Web app\napps/web] -->|HTTP| API[API service\nservices/api]
-  API -->|Reads/Writes| ClickHouse[(ClickHouse)]
-  API -->|Cache| Redis[(Redis)]
-  DataGen[Data generator\ntools/data-gen] -->|Builds| Parquet[(Parquet files)]
-  Parquet -->|Load| ClickHouse
+## Architecture
 
-  classDef web fill:#dbeafe,stroke:#1e3a8a,stroke-width:2px,color:#0f172a;
-  classDef api fill:#fef3c7,stroke:#92400e,stroke-width:2px,color:#0f172a;
-  classDef db fill:#bbf7d0,stroke:#166534,stroke-width:2px,color:#0f172a;
-  classDef cache fill:#fde68a,stroke:#92400e,stroke-width:2px,color:#0f172a;
-  classDef parquet fill:#e9d5ff,stroke:#6b21a8,stroke-width:2px,color:#0f172a;
-
-  class Web web;
-  class API api;
-  class ClickHouse db;
-  class Redis cache;
-  class DataGen api;
-  class Parquet parquet;
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Pivot Platform                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─────────────┐        ┌─────────────┐        ┌─────────────────────┐    │
+│   │   Web App   │──HTTP──│  API Server │──────▶│     ClickHouse      │    │
+│   │  apps/web   │        │ services/api│        │   (OLAP Storage)    │    │
+│   └─────────────┘        └──────┬──────┘        └─────────────────────┘    │
+│                                 │                         ▲                 │
+│                                 │                         │                 │
+│                          ┌──────▼──────┐        ┌─────────┴─────────┐      │
+│                          │    Redis    │        │   Data Generator  │      │
+│                          │   (Cache)   │        │  tools/data-gen   │      │
+│                          └─────────────┘        └───────────────────┘      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Near-term plan
+## Data Flow
 
-1. Implement API routes for query and pivot operations.
-2. Build a basic web UI to request and visualize pivots.
-3. Add integration with ClickHouse and Redis.
-4. Expand test coverage with unit and integration tests.
+1. **Data Generation**: The `pivot-data-gen` tool creates synthetic trade data with realistic financial characteristics
+2. **Storage**: Trade data is loaded into ClickHouse, partitioned by trade date
+3. **API Layer**: The Rust API service queries ClickHouse and caches results in Redis
+4. **Web Interface**: React-based UI for interactive pivot table exploration
+
+## Key Concepts
+
+### Composite Instruments
+
+ETFs (Exchange-Traded Funds) and ETCs (Exchange-Traded Commodities) are "composite" instruments that hold baskets of underlying securities or commodities.
+
+**Example**: Buying SPY (S&P 500 ETF) gives you exposure to 500+ stocks
+
+The platform supports "look-through" analysis by exploding trades in composite instruments into their constituent exposures:
+
+```
+Portfolio View (Aggregated):
+├── SPY:     $1,000,000
+├── QQQ:     $500,000
+└── AAPL:    $200,000
+
+Look-Through View (Exploded):
+├── AAPL:    $200,000 (direct) + $70,000 (via SPY) + $60,000 (via QQQ) = $330,000
+├── MSFT:    $65,000 (via SPY) + $50,000 (via QQQ) = $115,000
+├── GOOGL:   $40,000 (via SPY) + $40,000 (via QQQ) = $80,000
+└── ...
+```
+
+### Multi-Dimensional Pivoting
+
+The schema supports pivoting across multiple dimensions:
+
+- **Organizational**: Portfolio Manager → Fund → Portfolio → Account → Desk → Book
+- **Geographic**: Region → Country → Venue
+- **Instrument**: Asset Class → Product → Instrument Type → Symbol
+- **Time**: Date → Timestamp
+
+## Quick Start
+
+```bash
+# Start infrastructure
+docker compose up -d
+
+# Initialize database
+pnpm db:reset
+pnpm db:rollups
+
+# Generate sample data
+cargo run -p pivot-data-gen -- --rows 10000 --output sample.csv
+
+# Run API
+pnpm dev:api
+
+# Run web app
+pnpm dev:web
+```
