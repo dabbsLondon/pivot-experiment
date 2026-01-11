@@ -104,8 +104,11 @@ cargo run -p pivot-data-gen -- \
 
 ## Documentation
 
+- [Getting Started](docs/getting-started.md) - Step-by-step data generation guide
 - [Data Model](docs/data-model.md) - Schema design and query patterns
 - [Data Generator](docs/data-generator.md) - CLI usage and options
+- [Large-Scale Generation](docs/large-scale-data-generation.md) - Generating 20M+ rows
+- [Project Roadmap](docs/roadmap.md) - Delivery plan and next steps
 
 ## Tech Stack
 

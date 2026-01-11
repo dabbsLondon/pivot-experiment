@@ -6,8 +6,11 @@ Technical documentation for the Pivot Experiment platform.
 
 | Document | Description |
 |----------|-------------|
+| [Getting Started](./getting-started.md) | Step-by-step guide to generate data and load into ClickHouse |
 | [Data Model](./data-model.md) | Schema design, tables, constituent relationships, and query patterns |
 | [Data Generator](./data-generator.md) | CLI tool usage, options, and loading data into ClickHouse |
+| [Large-Scale Generation](./large-scale-data-generation.md) | Plan for generating 20M+ row datasets |
+| [Project Roadmap](./roadmap.md) | Detailed delivery plan with phases and action items |
 
 ## Architecture
 
